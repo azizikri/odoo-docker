@@ -1,42 +1,31 @@
+version: '3.1'
 services:
-  db:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:-odoo}
-      POSTGRES_USER: ${POSTGRES_USER:-odoo}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-odoo}
-    volumes:
-      - db-data:/var/lib/postgresql/data
-    healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          'pg_isready -U ${POSTGRES_USER:-odoo} -d ${POSTGRES_DB:-odoo}',
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  odoo:
-    image: odoo:${ODOO_VERSION:-17.0}
+  web:
+    build:
+      context: .
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     ports:
-      - '8069:8069'
-    command:
-      - '--db_host=db'
-      - '--db_user=${POSTGRES_USER:-odoo}'
-      - '--db_password=${POSTGRES_PASSWORD:-odoo}'
-      - '-d'
-      - '${POSTGRES_DB:-odoo}'
-    environment:
-      # Optional timezone for logs; adjust as needed
-      TZ: Asia/Jakarta
+      - 8069:8069
     volumes:
-      - odoo-data:/var/lib/odoo
-      - ./addons:/mnt/extra-addons
-
+      - odoo-web-data:/var/lib/odoo
+      - ./config:/etc/odoo
+      - ./addons:/mnt/addons
+    command: >
+      odoo
+      --db_host=db --db_port=5432 --db_user=odoo --db_password=odoo
+      --addons-path=/usr/lib/python3/dist-packages/odoo/addons
+  db:
+    image: postgres:15
+    ports:
+      - 5470:5432
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_USER=odoo
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 volumes:
-  db-data:
-  odoo-data:
+  odoo-web-data:
+  postgres_data:
